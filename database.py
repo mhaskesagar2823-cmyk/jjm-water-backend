@@ -1,4 +1,3 @@
-import ssl
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -8,10 +7,7 @@ DATABASE_URL = "mysql+pymysql://avnadmin:AVNS_quj7rIjnriupzY-GcK8@mysql-sih-2-mh
 engine = create_engine(
     DATABASE_URL,
     connect_args={
-        "ssl": {
-            "check_hostname": False,
-            "verify_mode": ssl.CERT_NONE
-        }
+        "ssl": {}
     }
 )
 
