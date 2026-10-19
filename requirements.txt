@@ -3,3 +3,11 @@ uvicorn
 sqlalchemy
 pymysql
 pydantic
+python-multipart
+scikit-learn
+joblib
+pandas
+numpy
+twilio
+requests
+apscheduler
