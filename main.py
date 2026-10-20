@@ -5,6 +5,7 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, UploadFile, File, Form
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
@@ -47,14 +48,27 @@ def classify_anomaly(flow_rate: float, pressure: float) -> tuple[str, str]:
     else:
         return "UNUSUAL_PRESSURE_FLOW_PATTERN", "LOW"
 
+# 1. Single Root Route: Serves dashboard.html if present, otherwise returns status JSON
 @app.get("/")
-def read_root():
+async def serve_dashboard():
+    if os.path.exists("dashboard.html"):
+        return FileResponse("dashboard.html")
     return {
         "status": "online",
         "service": "JJM Water Monitoring API",
         "model_loaded": ml_artifacts.get("model") is not None
     }
 
+# 2. Health Check Endpoint (if you ever want to check JSON status directly)
+@app.get("/api/health")
+def health_check():
+    return {
+        "status": "online",
+        "service": "JJM Water Monitoring API",
+        "model_loaded": ml_artifacts.get("model") is not None
+    }
+
+# 3. Restored Telemetry & ML Scoring Endpoint
 @app.post("/api/telemetry", status_code=201)
 def ingest_telemetry(
     payload: schemas.TelemetryCreate,
@@ -106,6 +120,7 @@ def ingest_telemetry(
         "details": anomaly_details
     }
 
+# 4. Citizen Grievance & Photo Upload Endpoint
 @app.post("/api/grievances", status_code=201)
 async def submit_grievance(
     user_id: str = Form(...),
@@ -146,6 +161,7 @@ async def submit_grievance(
 
     return {"status": "success", "message": "Grievance saved to Aiven MySQL"}
 
+# 5. Central IMIS Handover Endpoint
 @app.post("/api/v1/imis_sync", status_code=200)
 def mock_imis_sync(payload: schemas.IMISSyncPayload):
     print(f"🏛️ [CENTRAL IMIS SERVER] SUJALAM BHARAT HANDOVER RECEIVED: {payload.sync_batch_id}")
@@ -157,6 +173,7 @@ def mock_imis_sync(payload: schemas.IMISSyncPayload):
         "ingestion_timestamp": datetime.utcnow().isoformat() + "Z"
     }
 
+# 6. Dashboard Data Feed
 @app.get("/api/dashboard/data")
 def get_dashboard_data(limit: int = 50, db: Session = Depends(get_db)):
     telemetry = db.query(models.SensorTelemetry).order_by(desc(models.SensorTelemetry.timestamp)).limit(limit).all()

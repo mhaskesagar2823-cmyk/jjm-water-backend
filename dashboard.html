@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>JJM Central Monitoring & Grievance Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-teal px-4" style="background-color: #00695c;">
+        <span class="navbar-brand mb-0 h1">🚰 Jal Jeevan Mission - Central Enterprise Portal</span>
+        <span class="badge bg-light text-dark">Auto-Sync: 5s</span>
+    </nav>
+
+    <div class="container my-4">
+        <!-- Citizen Grievances Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm p-4">
+                    <h4 class="mb-3">📸 Recent Citizen Grievances & Uploaded Photos</h4>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover align-middle">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Citizen ID</th>
+                                    <th>Description & GPS Location</th>
+                                    <th>Photo Proof</th>
+                                    <th>Status</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody id="grievance-table">
+                                <tr><td colspan="6" class="text-center">Loading submissions...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Anomaly Alerts Section -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow-sm p-4">
+                    <h4 class="mb-3">🚨 Recent AI/ML Pipeline Anomaly Alerts</h4>
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th>Alert ID</th>
+                                    <th>Node ID</th>
+                                    <th>Anomaly Type</th>
+                                    <th>Severity</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody id="alerts-table">
+                                <tr><td colspan="5" class="text-center">Loading AI alerts...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function formatDescriptionWithMapLink(desc) {
+            if (!desc) return '';
+            const gpsMatch = desc.match(/\[GPS:\s*([-\d.]+),\s*([-\d.]+)\]/);
+            if (gpsMatch) {
+                const lat = gpsMatch[1];
+                const lng = gpsMatch[2];
+                const cleanText = desc.replace(gpsMatch[0], '').trim();
+                return `${cleanText} <br><a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="badge bg-primary text-decoration-none mt-1">📍 View on Map (${lat}, ${lng})</a>`;
+            }
+            return desc;
+        }
+
+        async function fetchDashboardData() {
+            try {
+                const res = await fetch('/api/dashboard/data');
+                const data = await res.json();
+                
+                // 1. Render Citizen Grievances
+                const tbody = document.getElementById('grievance-table');
+                tbody.innerHTML = '';
+                
+                if (!data.recent_grievances || data.recent_grievances.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No grievances submitted yet.</td></tr>';
+                } else {
+                    data.recent_grievances.forEach(g => {
+                        const rowId = g.grievance_id ?? g.id ?? '-';
+                        const statusBadge = g.status === 'RESOLVED' 
+                            ? '<span class="badge bg-success">RESOLVED</span>' 
+                            : '<span class="badge bg-warning text-dark">OPEN</span>';
+                        
+                        const imgHtml = g.image_url 
+                            ? `<a href="/${g.image_url}" target="_blank">
+                                 <img src="/${g.image_url}" width="85" height="65" style="object-fit: cover;" class="img-thumbnail shadow-sm" alt="Issue Photo">
+                               </a>` 
+                            : '<span class="text-muted">No Image</span>';
+
+                        tbody.innerHTML += `<tr>
+                            <td><strong>#${rowId}</strong></td>
+                            <td>${g.user_id}</td>
+                            <td>${formatDescriptionWithMapLink(g.description)}</td>
+                            <td>${imgHtml}</td>
+                            <td>${statusBadge}</td>
+                            <td>${new Date(g.timestamp).toLocaleString()}</td>
+                        </tr>`;
+                    });
+                }
+
+                // 2. Render AI Alerts
+                const alertsBody = document.getElementById('alerts-table');
+                alertsBody.innerHTML = '';
+
+                if (!data.recent_alerts || data.recent_alerts.length === 0) {
+                    alertsBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No anomalies detected.</td></tr>';
+                } else {
+                    data.recent_alerts.forEach(a => {
+                        const alertId = a.alert_id ?? a.id ?? '-';
+                        const sevBadge = a.severity === 'CRITICAL' 
+                            ? '<span class="badge bg-danger">CRITICAL</span>' 
+                            : '<span class="badge bg-warning text-dark">' + a.severity + '</span>';
+
+                        alertsBody.innerHTML += `<tr>
+                            <td><strong>#${alertId}</strong></td>
+                            <td><code>${a.node_id}</code></td>
+                            <td><strong>${a.anomaly_type}</strong></td>
+                            <td>${sevBadge}</td>
+                            <td>${new Date(a.timestamp).toLocaleString()}</td>
+                        </tr>`;
+                    });
+                }
+            } catch (err) {
+                console.error('Error fetching dashboard data:', err);
+            }
+        }
+
+        fetchDashboardData();
+        setInterval(fetchDashboardData, 5000);
+    </script>
+</body>
+</html>
