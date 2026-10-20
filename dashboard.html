@@ -65,6 +65,23 @@
     </div>
 
     <script>
+        function formatToIST(utcTimestamp) {
+            if (!utcTimestamp) return '-';
+            const cleanTs = utcTimestamp.endsWith('Z') || utcTimestamp.includes('+') 
+                ? utcTimestamp 
+                : utcTimestamp + 'Z';
+            return new Date(cleanTs).toLocaleString('en-IN', {
+                timeZone: 'Asia/Kolkata',
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true
+            });
+        }
+
         function formatDescriptionWithMapLink(desc) {
             if (!desc) return '';
             const gpsMatch = desc.match(/\[GPS:\s*([-\d.]+),\s*([-\d.]+)\]/);
@@ -95,11 +112,27 @@
                             ? '<span class="badge bg-success">RESOLVED</span>' 
                             : '<span class="badge bg-warning text-dark">OPEN</span>';
                         
-                        const imgHtml = g.image_url 
-                            ? `<a href="/${g.image_url}" target="_blank">
-                                 <img src="/${g.image_url}" width="85" height="65" style="object-fit: cover;" class="img-thumbnail shadow-sm" alt="Issue Photo">
-                               </a>` 
-                            : '<span class="text-muted">No Image</span>';
+                        // Smart Image URL Resolution (works on both localhost:8000 and Render)
+                        let imgHtml = '<span class="text-muted">No Image</span>';
+                        if (g.image_url) {
+                            const cleanPath = g.image_url.replace(/^\/+/, '');
+                            const renderUrl = `https://jjm-water-api.onrender.com/${cleanPath}`;
+                            const localUrl = `/${cleanPath}`;
+                            
+                            const primarySrc = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                                ? renderUrl
+                                : localUrl;
+
+                            imgHtml = `
+                                <a href="${primarySrc}" target="_blank">
+                                    <img src="${primarySrc}" 
+                                         width="85" height="65" 
+                                         style="object-fit: cover;" 
+                                         class="img-thumbnail shadow-sm" 
+                                         alt="Issue Photo"
+                                         onerror="if (this.src !== '${renderUrl}') { this.src = '${renderUrl}'; } else { this.outerHTML = '<span class=\\'badge bg-secondary\\'>Image Expired on Cloud</span>'; }">
+                                </a>`;
+                        }
 
                         tbody.innerHTML += `<tr>
                             <td><strong>#${rowId}</strong></td>
@@ -107,7 +140,7 @@
                             <td>${formatDescriptionWithMapLink(g.description)}</td>
                             <td>${imgHtml}</td>
                             <td>${statusBadge}</td>
-                            <td>${new Date(g.timestamp).toLocaleString()}</td>
+                            <td>${formatToIST(g.timestamp)}</td>
                         </tr>`;
                     });
                 }
@@ -130,7 +163,7 @@
                             <td><code>${a.node_id}</code></td>
                             <td><strong>${a.anomaly_type}</strong></td>
                             <td>${sevBadge}</td>
-                            <td>${new Date(a.timestamp).toLocaleString()}</td>
+                            <td>${formatToIST(a.timestamp)}</td>
                         </tr>`;
                     });
                 }

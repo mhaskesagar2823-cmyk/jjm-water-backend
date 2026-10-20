@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
+import uuid
 
 import models, schemas
 from database import engine, get_db
@@ -121,6 +122,8 @@ def ingest_telemetry(
     }
 
 # 4. Citizen Grievance & Photo Upload Endpoint
+
+
 @app.post("/api/grievances", status_code=201)
 async def submit_grievance(
     user_id: str = Form(...),
@@ -138,7 +141,10 @@ async def submit_grievance(
 
     image_location = None
     if image:
-        image_location = f"uploaded_grievances/{image.filename}"
+        # Sanitize filename to avoid spaces or special characters breaking the HTML <img> tag
+        ext = os.path.splitext(image.filename)[1] or ".jpg"
+        safe_filename = f"grievance_{uuid.uuid4().hex[:8]}{ext}"
+        image_location = f"uploaded_grievances/{safe_filename}"
         with open(image_location, "wb") as f:
             f.write(await image.read())
 
